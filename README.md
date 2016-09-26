@@ -1,6 +1,12 @@
 # Hangman
 
-**TODO: Add description**
+Name: Ephraim Wickline
+SID: (28176178)
+Assignment_2b
+
+This module will choose a random word, and let you, the human player, guess letters. 
+You start out with 10 lives. If your letter is not in the word, you lose a life. 
+If you lose all your lives, you lose the game. 
 
 ## Installation
 

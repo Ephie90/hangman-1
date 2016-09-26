@@ -107,7 +107,7 @@ Here's this module being exercised from an iex session:
 
     iex(13)> { game, state, guess } = G.make_move(game, "b")
     . . .
-    iex(14)> state                                          
+    iex(14)> state
     :bad_guess
 
     iex(15)> { game, state, guess } = G.make_move(game, "f")
@@ -142,6 +142,14 @@ Here's this module being exercised from an iex session:
 
   @spec new_game :: state
   def new_game do
+    new_word = Hangman.Dictionary.random_word
+    # initialize with random word and empty mapset for guessed
+    %{
+      word:         new_word,
+      letters_left: distinct_letters(new_word),
+      guessed:      MapSet.new,
+      turns_left:   10
+    }
   end
 
 
@@ -152,6 +160,12 @@ Here's this module being exercised from an iex session:
   """
   @spec new_game(binary) :: state
   def new_game(word) do
+    %{
+      word:         word,
+      letters_left: distinct_letters(word),
+      guessed:      MapSet.new,
+      turns_left:   10
+    }
   end
 
 
@@ -177,8 +191,15 @@ Here's this module being exercised from an iex session:
 
   @spec make_move(state, ch) :: { state, atom, optional_ch }
   def make_move(state, guess) do
+    cond do 
+      String.contains?(state.word, guess)->
+        state_update = %{state| guessed: MapSet.put(state.guessed, guess)}
+        game_eval(state_update, guess)
+      true->
+        state_update = %{state| turns_left: state.turns_left - 1, guessed: MapSet.put(state.guessed, guess)}
+        game_eval(state_update, guess)
+    end
   end
-
 
   @doc """
   `len = Hangman.Game.word_length(game)`
@@ -187,6 +208,7 @@ Here's this module being exercised from an iex session:
   """
   @spec word_length(state) :: integer
   def word_length(%{ word: word }) do
+    String.length(word)
   end
 
   @doc """
@@ -199,6 +221,7 @@ Here's this module being exercised from an iex session:
 
   @spec letters_used_so_far(state) :: [ binary ]
   def letters_used_so_far(state) do
+    MapSet.to_list(state.guessed)
   end
 
   @doc """
@@ -211,6 +234,7 @@ Here's this module being exercised from an iex session:
 
   @spec turns_left(state) :: integer
   def turns_left(state) do
+    state.turns_left
   end
 
   @doc """
@@ -224,6 +248,12 @@ Here's this module being exercised from an iex session:
 
   @spec word_as_string(state, boolean) :: binary
   def word_as_string(state, reveal \\ false) do
+    guessed = [" " | letters_used_so_far(state)] |> Enum.join
+    word = cond do
+      reveal -> state.word
+      true -> String.replace(state.word, ~r/[^#{guessed}]/, "_")
+    end
+    word |> String.graphemes |> Enum.join(" ") |> to_string()
   end
 
   ###########################
@@ -231,5 +261,25 @@ Here's this module being exercised from an iex session:
   ###########################
 
   # Your private functions go here
+
+  defp distinct_letters(word) do
+    word
+    |> String.graphemes
+    |> Map.new(&{&1, true})
+  end
+
+  defp game_eval(state, guess) do
+    { letter_match, state } = state |> pop_in([:letters_left, guess])
+    cond do
+      state.letters_left |> Map.keys |> length == 0
+        -> { state, :won, nil }
+      state.turns_left == 0
+        -> { state, :lost, nil }
+      letter_match 
+        -> { state, :good_guess, guess }
+      !letter_match
+        -> { state, :bad_guess, guess }
+    end
+  end
 
  end
